@@ -1,48 +1,48 @@
-// --- 1. 遊戲變數設定 ---
+// --- 1. 遊戲變數 ---
 const suits = ['♠', '♥', '♦', '♣'];
 const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
 let deck = [];
-let playerHand = [];
 let dealerHand = [];
+// 玩家手牌改為陣列，每個元素包含：{ cards: [], bet: 0, isDone: false, isBust: false, isDoubled: false }
+let playerHands = []; 
+let currentHandIndex = 0; // 目前正在操作哪一副牌
 let balance = 1000;
-let currentBet = 0;
 let isGameOver = true;
 
-// --- 2. DOM 元素快取 (方便後續使用) ---
+// --- 2. DOM 元素 ---
 const elBalance = document.getElementById('balance');
 const elBetAmount = document.getElementById('bet-amount');
 const elMessage = document.getElementById('message-area');
 const elDealerHand = document.getElementById('dealer-hand');
-const elPlayerHand = document.getElementById('player-hand');
+const elPlayerArea = document.getElementById('player-area'); // 玩家區域容器
 const elDealerScore = document.getElementById('dealer-score');
-const elPlayerScore = document.getElementById('player-score');
 
-// 按鈕群組
+// 按鈕
+const btnHit = document.getElementById('btn-hit');
+const btnStand = document.getElementById('btn-stand');
+const btnDouble = document.getElementById('btn-double');
+const btnSplit = document.getElementById('btn-split');
 const divBettingControls = document.getElementById('betting-controls');
 const divGameControls = document.getElementById('game-controls');
 const divRestartControls = document.getElementById('restart-controls');
 
 // --- 3. 初始化 ---
 window.onload = () => {
-    // 讀取歷史餘額
     const savedBalance = localStorage.getItem('bj_balance');
-    if (savedBalance !== null) {
-        balance = parseInt(savedBalance);
-    }
+    if (savedBalance !== null) balance = parseInt(savedBalance);
     updateUI();
     
-    // 綁定按鈕事件
     document.getElementById('btn-deal').onclick = startGame;
-    document.getElementById('btn-hit').onclick = hit;
-    document.getElementById('btn-stand').onclick = stand;
+    btnHit.onclick = hit;
+    btnStand.onclick = stand;
+    btnDouble.onclick = doubleBet;
+    btnSplit.onclick = splitHand;
     document.getElementById('btn-next-round').onclick = resetTable;
     document.getElementById('btn-reset').onclick = resetMoney;
 };
 
-// --- 4. 核心遊戲邏輯 ---
-
-// 建立一副新牌
+// --- 4. 牌組功能 ---
 function createDeck() {
     deck = [];
     for (let suit of suits) {
@@ -52,7 +52,6 @@ function createDeck() {
     }
 }
 
-// 洗牌 (Fisher-Yates 演算法)
 function shuffleDeck() {
     for (let i = deck.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -60,241 +59,331 @@ function shuffleDeck() {
     }
 }
 
-// 開始新局 (下注與發牌)
+function getCardValue(card) {
+    if (['J', 'Q', 'K'].includes(card.value)) return 10;
+    if (card.value === 'A') return 11;
+    return parseInt(card.value);
+}
+
+// --- 5. 遊戲流程 ---
+
 function startGame() {
     const bet = parseInt(elBetAmount.value);
+    if (isNaN(bet) || bet <= 0) return showMessage("金額無效", "danger");
+    if (bet > balance) return showMessage("餘額不足", "danger");
 
-    // 驗證下注金額
-    if (isNaN(bet) || bet <= 0) {
-        showMessage("請輸入有效的下注金額", "danger");
-        return;
-    }
-    if (bet > balance) {
-        showMessage("餘額不足！請重置資金或降低下注。", "danger");
-        return;
-    }
-
-    // 扣除籌碼
-    currentBet = bet;
-    balance -= currentBet;
-    localStorage.setItem('bj_balance', balance); // 即時存檔
+    // 扣除初始下注
+    balance -= bet;
+    localStorage.setItem('bj_balance', balance);
     updateUI();
 
-    // 初始化狀態
+    // 初始化
     isGameOver = false;
     createDeck();
     shuffleDeck();
-    playerHand = [];
     dealerHand = [];
+    playerHands = [];
+    currentHandIndex = 0;
+
+    // 建立玩家第一副手牌
+    playerHands.push({
+        cards: [],
+        bet: bet,
+        isDone: false, // 是否結束操作
+        isBust: false, // 是否爆牌
+        isDoubled: false // 是否雙倍過
+    });
     
-    // 發牌：玩家兩張，莊家兩張 (莊家一張暗牌)
-    playerHand.push(deck.pop());
+    // 發牌
+    playerHands[0].cards.push(deck.pop());
     dealerHand.push(deck.pop());
-    playerHand.push(deck.pop());
+    playerHands[0].cards.push(deck.pop());
     dealerHand.push(deck.pop());
 
-    renderTable(false); // false 代表不顯示莊家暗牌
+    renderTable(false);
     
-    // 切換介面
+    // 介面切換
     divBettingControls.classList.add('d-none');
     divGameControls.classList.remove('d-none');
     divRestartControls.classList.add('d-none');
-    showMessage("遊戲開始！選擇要牌或停牌...", "info");
+    showMessage("遊戲開始", "info");
 
-    // 檢查是否起手 BlackJack (21點)
-    const pScore = calculateScore(playerHand);
+    checkButtonsState(); // 檢查雙倍/分牌按鈕是否可用
+
+    // 檢查起手 BlackJack
+    const pScore = calculateScore(playerHands[0].cards);
     if (pScore === 21) {
-        stand(); // 直接進入結算
+        stand(); 
     }
 }
 
-// 玩家要牌
+// 檢查按鈕狀態 (分牌/雙倍規則)
+function checkButtonsState() {
+    const currentHand = playerHands[currentHandIndex];
+    
+    // 1. 雙倍：餘額足夠 && 只有兩張牌
+    if (balance >= currentHand.bet && currentHand.cards.length === 2) {
+        btnDouble.disabled = false;
+    } else {
+        btnDouble.disabled = true;
+    }
+
+    // 2. 分牌：餘額足夠 && 只有兩張牌 && 點數相同(或面額相同) && 還沒分過牌(簡單起見限制一次)
+    const card1Value = getCardValue(currentHand.cards[0]); // 這裡簡化：只要點數一樣就能分 (如 J 和 K 算 10 點)
+    const card2Value = getCardValue(currentHand.cards[1]);
+    
+    if (balance >= currentHand.bet && 
+        currentHand.cards.length === 2 && 
+        card1Value === card2Value && 
+        playerHands.length < 2) {
+        btnSplit.disabled = false;
+    } else {
+        btnSplit.disabled = true;
+    }
+}
+
 function hit() {
     if (isGameOver) return;
+    const hand = playerHands[currentHandIndex];
     
-    playerHand.push(deck.pop());
+    hand.cards.push(deck.pop());
     renderTable(false);
     
-    const score = calculateScore(playerHand);
+    const score = calculateScore(hand.cards);
     if (score > 21) {
-        endRound('bust'); // 爆牌
+        hand.isBust = true;
+        showMessage("爆牌！", "danger");
+        stand(); // 自動停牌換下一手
+    } else if (score === 21) {
+        stand(); // 21點自動停牌
+    } else {
+        // 如果沒爆，取消雙倍和分牌權利 (因為已經要過牌了)
+        btnDouble.disabled = true;
+        btnSplit.disabled = true;
     }
 }
 
-// 玩家停牌 (換莊家行動)
 function stand() {
     if (isGameOver) return;
     
-    // 莊家 AI：點數小於 17 必須補牌
-    while (calculateScore(dealerHand) < 17) {
-        dealerHand.push(deck.pop());
-    }
+    playerHands[currentHandIndex].isDone = true;
     
-    renderTable(true); // true 代表翻開莊家暗牌
-    determineWinner();
-}
-
-// 判定勝負
-function determineWinner() {
-    const pScore = calculateScore(playerHand);
-    const dScore = calculateScore(dealerHand);
-    
-    if (dScore > 21) {
-        endRound('dealer_bust'); // 莊家爆牌
-    } else if (pScore > dScore) {
-        endRound('win');
-    } else if (pScore < dScore) {
-        endRound('lose');
+    // 如果還有下一副牌 (分牌情況)，切換過去
+    if (currentHandIndex < playerHands.length - 1) {
+        currentHandIndex++;
+        showMessage(`請操作第 ${currentHandIndex + 1} 副牌`, "info");
+        checkButtonsState(); // 重新檢查新牌的按鈕狀態
+        renderTable(false);
     } else {
-        endRound('push'); // 平手
+        // 所有牌都操作完，換莊家
+        dealerTurn();
     }
 }
 
-// 結算處理
-function endRound(result) {
-    isGameOver = true;
-    let msg = "";
-    let msgType = "";
+function doubleBet() {
+    const hand = playerHands[currentHandIndex];
+    if (balance < hand.bet) return; // 二次檢查
 
-    switch (result) {
-        case 'bust':
-            msg = "爆牌了！你輸了。";
-            msgType = "danger";
-            break;
-        case 'dealer_bust':
-            msg = "莊家爆牌！你贏了！";
-            msgType = "success";
-            balance += currentBet * 2;
-            break;
-        case 'win':
-            msg = "恭喜！你的點數較大，你贏了！";
-            msgType = "success";
-            balance += currentBet * 2;
-            break;
-        case 'lose':
-            msg = "莊家點數較大，你輸了。";
-            msgType = "danger";
-            break;
-        case 'push':
-            msg = "平手 (Push)，退回賭注。";
-            msgType = "warning";
-            balance += currentBet;
-            break;
+    // 扣錢
+    balance -= hand.bet;
+    hand.bet *= 2; // 下注翻倍
+    hand.isDoubled = true;
+    localStorage.setItem('bj_balance', balance);
+    updateUI();
+
+    showMessage(`雙倍下注！總注額: $${hand.bet}`, "warning");
+    
+    // 發一張牌，然後強制停牌
+    hand.cards.push(deck.pop());
+    
+    const score = calculateScore(hand.cards);
+    if (score > 21) hand.isBust = true;
+    
+    stand();
+}
+
+function splitHand() {
+    const hand = playerHands[currentHandIndex];
+    if (balance < hand.bet) return;
+
+    // 扣第二副牌的錢
+    balance -= hand.bet;
+    localStorage.setItem('bj_balance', balance);
+    updateUI();
+
+    showMessage("分牌！", "info");
+
+    // 拆分卡牌
+    const cardToMove = hand.cards.pop();
+    
+    // 建立第二副手牌
+    playerHands.push({
+        cards: [cardToMove],
+        bet: hand.bet,
+        isDone: false,
+        isBust: false,
+        isDoubled: false
+    });
+
+    // 兩副牌各補一張
+    hand.cards.push(deck.pop());
+    playerHands[1].cards.push(deck.pop());
+
+    // 保持 index 為 0，先玩第一副
+    checkButtonsState();
+    renderTable(false);
+}
+
+function dealerTurn() {
+    // 如果玩家所有手牌都爆了，莊家不用做事
+    const allBust = playerHands.every(h => h.isBust);
+    
+    if (!allBust) {
+        renderTable(true); // 翻開莊家暗牌
+        while (calculateScore(dealerHand) < 17) {
+            dealerHand.push(deck.pop());
+            renderTable(true); // 為了即時更新
+        }
+    } else {
+        renderTable(true);
+    }
+    
+    settleGame();
+}
+
+function settleGame() {
+    isGameOver = true;
+    const dScore = calculateScore(dealerHand);
+    let totalWin = 0;
+    
+    // 逐一結算每副手牌
+    playerHands.forEach((hand, index) => {
+        const pScore = calculateScore(hand.cards);
+        let resultMsg = "";
+        
+        // 結算邏輯
+        if (hand.isBust) {
+            resultMsg = "爆牌";
+        } else if (dScore > 21) {
+            resultMsg = "莊家爆牌(贏)";
+            totalWin += hand.bet * 2;
+            balance += hand.bet * 2;
+        } else if (pScore > dScore) {
+            resultMsg = "你贏了";
+            // BlackJack 3:2 賠率通常只適用於首兩張，這裡簡化統一 1:1
+            totalWin += hand.bet * 2;
+            balance += hand.bet * 2;
+        } else if (pScore < dScore) {
+            resultMsg = "你輸了";
+        } else {
+            resultMsg = "平手";
+            totalWin += hand.bet;
+            balance += hand.bet; // 退回本金
+        }
+        
+        // 在該手牌上顯示結果 (視覺效果)
+        hand.resultText = resultMsg;
+    });
+
+    localStorage.setItem('bj_balance', balance);
+    updateUI();
+    
+    // 顯示總結
+    if (totalWin > 0) {
+        showMessage(`本局結束，共獲得 $${totalWin}`, "success");
+    } else {
+        showMessage("本局結束，再接再厲", "danger");
     }
 
-    localStorage.setItem('bj_balance', balance); // 存檔
-    updateUI();
-    showMessage(msg, msgType);
-    
-    // 切換按鈕顯示
     divGameControls.classList.add('d-none');
     divRestartControls.classList.remove('d-none');
-    
-    // 如果是最終顯示，強制全開莊家牌
-    if(result === 'bust') renderTable(true);
+    renderTable(true); // 重新渲染以顯示結果文字
 }
 
-// 重置桌面準備下一局
-function resetTable() {
-    divRestartControls.classList.add('d-none');
-    divBettingControls.classList.remove('d-none');
-    showMessage("請下注", "info");
-    
-    // 清空桌面視覺
-    elDealerHand.innerHTML = '';
-    elPlayerHand.innerHTML = '';
-    elDealerScore.innerText = '?';
-    elPlayerScore.innerText = '0';
-}
+// --- 6. 渲染與輔助 ---
 
-// 重置資金 (作弊按鈕)
-function resetMoney() {
-    if (confirm("確定要將資金重置為 $1000 嗎？")) {
-        balance = 1000;
-        localStorage.setItem('bj_balance', balance);
-        updateUI();
-        showMessage("資金已重置", "warning");
-    }
-}
-
-// --- 5. 輔助函式 ---
-
-// 計算點數 (處理 A)
-function calculateScore(hand) {
-    let score = 0;
-    let aceCount = 0;
-
-    for (let card of hand) {
-        if (['J', 'Q', 'K'].includes(card.value)) {
-            score += 10;
-        } else if (card.value === 'A') {
-            aceCount++;
-            score += 11;
-        } else {
-            score += parseInt(card.value);
-        }
-    }
-
-    // 如果爆牌且有 A，將 A 視為 1
-    while (score > 21 && aceCount > 0) {
-        score -= 10;
-        aceCount--;
-    }
-    
-    return score;
-}
-
-// 渲染畫面
 function renderTable(showDealerFull) {
-    // 渲染玩家手牌
-    elPlayerHand.innerHTML = '';
-    playerHand.forEach(card => {
-        elPlayerHand.innerHTML += createCardHTML(card);
-    });
-    elPlayerScore.innerText = calculateScore(playerHand);
-
-    // 渲染莊家手牌
+    // 渲染莊家
     elDealerHand.innerHTML = '';
     dealerHand.forEach((card, index) => {
-        // 如果還沒結束且是第一張牌 -> 顯示背面 (暗牌)
         if (index === 0 && !showDealerFull) {
             elDealerHand.innerHTML += `<div class="playing-card card-back"></div>`;
         } else {
             elDealerHand.innerHTML += createCardHTML(card);
         }
     });
+    elDealerScore.innerText = showDealerFull ? calculateScore(dealerHand) : "?";
 
-    // 莊家分數顯示
-    if (showDealerFull) {
-        elDealerScore.innerText = calculateScore(dealerHand);
-    } else {
-        // 暗牌狀態下，只顯示亮牌的分數 (其實稍微不準確，但為了簡單先顯示?)
-        // 嚴格來說，21點通常此時不顯示莊家分數，或只顯示第二張牌的分數
-        // 這裡我們簡單處理：顯示 "?"
-        elDealerScore.innerText = "?";
+    // 渲染玩家 (支援多手牌)
+    elPlayerArea.innerHTML = '';
+    
+    playerHands.forEach((hand, index) => {
+        const isActive = (index === currentHandIndex && !isGameOver);
+        const activeClass = isActive ? 'hand-active' : 'hand-inactive';
+        const score = calculateScore(hand.cards);
+        
+        // 如果只有一副牌，用 col-12，如果有兩副，用 col-6
+        const colClass = playerHands.length > 1 ? 'col-6' : 'col-12';
+        
+        let html = `
+            <div class="${colClass} text-center">
+                <div class="player-hand-container ${activeClass} position-relative">
+                    <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
+                         <h5 class="m-0">手牌 ${index + 1}</h5>
+                         <span class="badge ${hand.isBust ? 'bg-danger' : 'bg-primary'} rounded-pill">${score}</span>
+                    </div>
+                    <div class="d-flex justify-content-center gap-2 flex-wrap" style="min-height: 100px;">
+                        ${hand.cards.map(createCardHTML).join('')}
+                    </div>
+                    <div class="mt-2 text-warning small">下注: $${hand.bet}</div>
+                    ${hand.resultText ? `<div class="result-badge badge bg-light text-dark shadow">${hand.resultText}</div>` : ''}
+                </div>
+            </div>
+        `;
+        elPlayerArea.innerHTML += html;
+    });
+}
+
+function calculateScore(cards) {
+    let score = 0;
+    let aceCount = 0;
+    for (let card of cards) {
+        if (['J', 'Q', 'K'].includes(card.value)) score += 10;
+        else if (card.value === 'A') { aceCount++; score += 11; }
+        else score += parseInt(card.value);
+    }
+    while (score > 21 && aceCount > 0) { score -= 10; aceCount--; }
+    return score;
+}
+
+function createCardHTML(card) {
+    const isRed = (card.suit === '♥' || card.suit === '♦');
+    return `<div class="playing-card ${isRed ? 'suit-red' : 'suit-black'}"><div>${card.value}</div><div>${card.suit}</div></div>`;
+}
+
+function resetTable() {
+    divRestartControls.classList.add('d-none');
+    divBettingControls.classList.remove('d-none');
+    elDealerHand.innerHTML = '';
+    elPlayerArea.innerHTML = '';
+    elDealerScore.innerText = '?';
+    showMessage("請下注", "info");
+}
+
+function resetMoney() {
+    if (confirm("確定要重置資金嗎？")) {
+        balance = 1000;
+        localStorage.setItem('bj_balance', balance);
+        updateUI();
     }
 }
 
-// 產生卡牌 HTML 字串
-function createCardHTML(card) {
-    const isRed = (card.suit === '♥' || card.suit === '♦');
-    const colorClass = isRed ? 'suit-red' : 'suit-black';
-    return `
-        <div class="playing-card ${colorClass}">
-            <div style="font-size: 0.8em;">${card.value}</div>
-            <div>${card.suit}</div>
-        </div>
-    `;
+function updateUI() {
+    elBalance.innerText = balance;
 }
 
-// 顯示訊息
 function showMessage(msg, type) {
     elMessage.className = `alert alert-${type} text-center`;
     elMessage.innerText = msg;
     elMessage.classList.remove('d-none');
-}
-
-// 更新介面數值
-function updateUI() {
-    elBalance.innerText = balance;
 }
