@@ -7,7 +7,7 @@ let dealerHand = [];
 // 玩家手牌改為陣列，每個元素包含：{ cards: [], bet: 0, isDone: false, isBust: false, isDoubled: false }
 let playerHands = []; 
 let currentHandIndex = 0; // 目前正在操作哪一副牌
-let balance = 1000;
+let balance = 10000;
 let isGameOver = true;
 
 // --- 2. DOM 元素 ---
@@ -290,9 +290,9 @@ function settleGame() {
     
     // 顯示總結
     if (totalWin > 0) {
-        showMessage(`本局結束，共獲得 $${totalWin}`, "success");
+        showMessage(`你贏了，獲得 $${totalWin}`, "success");
     } else {
-        showMessage("本局結束，再接再厲", "danger");
+        showMessage("你又輸", "danger");
     }
 
     divGameControls.classList.add('d-none');
