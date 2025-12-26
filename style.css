@@ -1,109 +1,114 @@
-/* --- 全局設定 --- */
 body {
-    /* 防止手機上下拉動時的彈性效果影響遊戲體驗 */
-    overscroll-behavior-y: none; 
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* 製作一個類似高級賭桌的深色放射狀背景 */
+    background: radial-gradient(circle at center, #2b3035 0%, #121212 100%);
+    min-height: 100vh;
+    overscroll-behavior-y: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    color: #e0e0e0; /* 柔和的亮灰色文字 */
 }
 
-/* --- 卡牌核心樣式 --- */
+/* --- 容器與卡片區塊優化 --- */
+/* 讓上方的資訊欄變成半透明黑底 (毛玻璃感) */
+.card {
+    background-color: rgba(30, 30, 30, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(10px);
+}
+
+/* 籌碼數字變成金色，更有賭場感 */
+#balance {
+    color: #ffd700 !important; /* 金色 */
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+/* 分數徽章改為深色霓虹風格 */
+.badge {
+    font-size: 1rem;
+    padding: 0.5em 0.8em;
+}
+
+/* --- 卡牌核心樣式 (維持白色以確保可讀性，但增加光暈) --- */
 .playing-card {
-    /* 卡牌尺寸 (電腦版預設) */
     width: 80px;
     height: 115px;
-    
-    background-color: white;
-    border: 1px solid #ced4da;
-    border-radius: 8px; /* 圓角 */
-    
-    /* 內容排版 */
+    background-color: #e6e6e6; /* 稍微不要那麼刺眼的白 */
+    border: 1px solid #000;
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    
-    /* 字體大小 */
     font-size: 1.5rem;
     font-weight: bold;
     
-    /* 陰影與動畫 */
-    box-shadow: 2px 2px 6px rgba(0,0,0,0.15);
+    /* 暗黑模式下的卡牌陰影改為發光感 */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.8); 
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: default;
-    
-    /* 讓卡牌生成時有一個小小的淡入效果 */
     animation: dealCard 0.3s ease-out forwards;
 }
 
-/* 懸停效果 (僅視覺趣味) */
+/* 懸停效果 */
 .playing-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 4px 4px 10px rgba(0,0,0,0.2);
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+    z-index: 10;
 }
 
-/* --- 花色顏色定義 --- */
-.suit-red {
-    color: #dc3545; /* Bootstrap 的 Danger 紅色 */
-}
+/* --- 花色微調 --- */
+/* 紅色花色稍微深一點，避免在暗黑模式太刺眼 */
+.suit-red { color: #c92a2a; }
+.suit-black { color: #1a1a1a; }
 
-.suit-black {
-    color: #212529; /* Bootstrap 的 Dark 黑色 */
-}
-
-/* --- 卡牌背面樣式 (莊家的暗牌) --- */
+/* --- 卡牌背面 (暗黑幾何風格) --- */
 .card-back {
-    /* 使用 CSS 漸層畫出藍色條紋圖案，不需圖片 */
+    /* 深藍與黑色的交錯條紋 */
     background: repeating-linear-gradient(
-        45deg,
-        #0d6efd,         /* Bootstrap Primary Blue */
-        #0d6efd 10px,
-        #0a58ca 10px,
-        #0a58ca 20px
+        135deg,
+        #1a1d20,
+        #1a1d20 10px,
+        #0f1113 10px,
+        #0f1113 20px
     );
-    border-color: #0a58ca;
-    color: transparent; /* 隱藏上面的文字 */
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    border: 1px solid #333;
 }
 
-/* 為了讓背面看起來更有質感，加一個白色邊框內縮效果 */
 .card-back::after {
-    content: "";
-    width: 80%;
-    height: 85%;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-radius: 4px;
+    border-color: rgba(255,255,255,0.1);
 }
 
-/* --- 遊戲訊息動畫 --- */
-.alert {
-    transition: opacity 0.3s ease-in-out;
+/* --- 按鈕美化 (霓虹邊框風格) --- */
+/* 覆蓋 Bootstrap 按鈕樣式 */
+.btn-primary {
+    background-color: #0d6efd;
+    box-shadow: 0 0 10px rgba(13, 110, 253, 0.4);
+}
+.btn-danger {
+    background-color: #dc3545;
+    box-shadow: 0 0 10px rgba(220, 53, 69, 0.4);
+}
+.btn-success {
+    background-color: #198754;
+    box-shadow: 0 0 10px rgba(25, 135, 84, 0.4);
 }
 
 /* --- 手機版適配 (RWD) --- */
-/* 當螢幕寬度小於 576px (常見手機尺寸) 時執行 */
 @media (max-width: 576px) {
     .playing-card {
-        width: 60px;   /* 縮小寬度 */
-        height: 85px;  /* 縮小高度 */
-        font-size: 1.2rem; /* 縮小字體 */
+        width: 60px;
+        height: 85px;
+        font-size: 1.2rem;
     }
-    
-    /* 調整訊息區與按鈕間距，節省手機螢幕空間 */
     .container {
-        padding-top: 1rem !important;
-    }
-    
-    h4, h5 {
-        font-size: 1.1rem;
+        padding-top: 0.5rem !important;
     }
 }
 
-/* --- 發牌動畫關鍵影格 --- */
+/* --- 動畫 --- */
 @keyframes dealCard {
     from {
         opacity: 0;
-        transform: translateY(-20px) scale(0.9);
+        transform: translateY(-30px) scale(0.8);
     }
     to {
         opacity: 1;
