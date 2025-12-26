@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>21點挑戰 (Blackjack)</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-light">
+
+    <div class="container py-3" style="max-width: 600px;">
+
+        <div class="card mb-3 shadow-sm border-0">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="m-0 fw-bold">♠️ 21點</h4>
+                    <button id="btn-reset" class="btn btn-outline-secondary btn-sm">重置資金</button>
+                </div>
+                
+                <div class="alert alert-secondary d-flex justify-content-between align-items-center p-2 mb-0">
+                    <span class="h5 m-0">籌碼餘額:</span>
+                    <span class="h4 m-0 fw-bold text-success">$<span id="balance">0</span></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="message-area" class="alert alert-info text-center d-none" role="alert">
+            歡迎遊玩！
+        </div>
+
+        <div class="game-board mb-3">
+            
+            <div class="row mb-4">
+                <div class="col-12 text-center">
+                    <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
+                        <h5 class="m-0">莊家</h5>
+                        <span id="dealer-score" class="badge bg-secondary rounded-pill">?</span>
+                    </div>
+                    <div id="dealer-hand" class="d-flex justify-content-center gap-2 flex-wrap" style="min-height: 100px;">
+                        </div>
+                </div>
+            </div>
+
+            <hr class="text-secondary opacity-25">
+
+            <div class="row mb-2">
+                <div class="col-12 text-center">
+                    <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
+                        <h5 class="m-0">玩家</h5>
+                        <span id="player-score" class="badge bg-primary rounded-pill">0</span>
+                    </div>
+                    <div id="player-hand" class="d-flex justify-content-center gap-2 flex-wrap" style="min-height: 100px;">
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls-area">
+            
+            <div id="betting-controls" class="card shadow-sm border-0">
+                <div class="card-body">
+                    <label for="bet-amount" class="form-label text-muted small">下注金額</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" id="bet-amount" class="form-control form-control-lg text-center" value="100" min="10" step="10">
+                        <button id="btn-deal" class="btn btn-success btn-lg px-4">發牌</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="game-controls" class="d-none">
+                <div class="d-grid gap-2 d-flex justify-content-center">
+                    <button id="btn-hit" class="btn btn-primary btn-lg flex-grow-1 py-3 shadow-sm">
+                        要牌 <br><small style="font-size: 0.7em;">(Hit)</small>
+                    </button>
+                    <button id="btn-stand" class="btn btn-danger btn-lg flex-grow-1 py-3 shadow-sm">
+                        停牌 <br><small style="font-size: 0.7em;">(Stand)</small>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="restart-controls" class="d-none">
+                 <div class="d-grid">
+                    <button id="btn-next-round" class="btn btn-primary btn-lg py-3 shadow-sm">
+                        下一局 (Next Round)
+                    </button>
+                 </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
