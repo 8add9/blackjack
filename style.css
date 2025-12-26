@@ -22,7 +22,6 @@ body {
     padding: 0.5em 0.8em;
 }
 
-
 .playing-card {
     width: 80px;
     height: 115px;
@@ -35,20 +34,17 @@ body {
     align-items: center;
     font-size: 1.5rem;
     font-weight: bold;
-    
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.8); 
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: default;
     animation: dealCard 0.3s ease-out forwards;
 }
 
-
 .playing-card:hover {
     transform: translateY(-5px) scale(1.05);
     box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
     z-index: 10;
 }
-
 
 .suit-red { color: #c92a2a; }
 .suit-black { color: #1a1a1a; }
@@ -102,32 +98,25 @@ body {
         transform: translateY(0) scale(1);
     }
 }
-/* ... (保留原本的 CSS) ... */
 
-/* --- 新增：多手牌支援樣式 --- */
-
-/* 玩家手牌容器 */
 .player-hand-container {
     transition: all 0.3s;
     border-radius: 10px;
     padding: 10px;
-    border: 2px solid transparent; /* 預留邊框位置 */
+    border: 2px solid transparent;
 }
 
-/* 當前正在操作的手牌 (高亮顯示) */
 .hand-active {
-    background-color: rgba(255, 215, 0, 0.1); /* 淡淡的金色背景 */
-    border-color: rgba(255, 215, 0, 0.5);     /* 金色邊框 */
+    background-color: rgba(255, 215, 0, 0.1);
+    border-color: rgba(255, 215, 0, 0.5);
     box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
 }
 
-/* 等待中或已結束的手牌 (變暗) */
 .hand-inactive {
     opacity: 0.6;
     filter: grayscale(0.5);
 }
 
-/* 結果標籤 (贏/輸) */
 .result-badge {
     font-size: 1.2rem;
     font-weight: bold;
@@ -138,6 +127,5 @@ body {
     transform: translate(-50%, -50%);
     z-index: 20;
     white-space: nowrap;
-    pointer-events: none; /* 讓點擊穿透 */
+    pointer-events: none;
 }
-
