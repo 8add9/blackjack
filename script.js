@@ -333,7 +333,7 @@ function resetTable() {
 
 function resetMoney() {
     if (confirm("確定要重置資金嗎？")) {
-        balance = 10000;
+        balance = 621000000;
         localStorage.setItem('bj_balance', balance);
         updateUI();
     }
