@@ -153,7 +153,19 @@ async function startGame() {
     dealerHand.push(await fetchCard('dealer', 0));
     playerHands[0].cards.push(await fetchCard('player', getCardValue(playerHands[0].cards[0])));
     dealerHand.push(await fetchCard('dealer', getCardValue(dealerHand[0])));
+    let c1 = await fetchCard('player', 0); c1.isNew = true; // 標記新牌
+    playerHands[0].cards.push(c1);
 
+    let d1 = await fetchCard('dealer', 0); d1.isNew = true; // 標記新牌
+    dealerHand.push(d1);
+
+    let c2 = await fetchCard('player', getCardValue(playerHands[0].cards[0])); c2.isNew = true; // 標記新牌
+    playerHands[0].cards.push(c2);
+
+    let d2 = await fetchCard('dealer', getCardValue(dealerHand[0])); d2.isNew = true; // 標記新牌
+    dealerHand.push(d2);
+
+    renderTable(false);
     renderTable(false);
     
     divBettingControls.classList.add('d-none');
@@ -174,7 +186,7 @@ async function hit() {
     const hand = playerHands[currentHandIndex];
     const currentScore = calculateScore(hand.cards);
     const newCard = await fetchCard('player', currentScore);
-    
+    newCard.isNew = true;
     hand.cards.push(newCard);
     renderTable(false);
     
@@ -218,6 +230,7 @@ async function doubleBet() {
     
     const currentScore = calculateScore(hand.cards);
     const newCard = await fetchCard('player', currentScore);
+    newCard.isNew = true;
     hand.cards.push(newCard);
     
     const score = calculateScore(hand.cards);
@@ -244,14 +257,18 @@ async function splitHand() {
         isDoubled: false
     });
     const score1 = getCardValue(hand.cards[0]);
-    hand.cards.push(await fetchCard('player', score1));
+        let c1 = await fetchCard('player', score1);
+        c1.isNew = true; // ✅ 標記新牌
+        hand.cards.push(c1);
 
-    const score2 = getCardValue(playerHands[1].cards[0]);
-    playerHands[1].cards.push(await fetchCard('player', score2));
+        const score2 = getCardValue(playerHands[1].cards[0]);
+        let c2 = await fetchCard('player', score2);
+        c2.isNew = true; // ✅ 標記新牌
+        playerHands[1].cards.push(c2);
 
-    checkButtonsState();
-    renderTable(false);
-}
+        checkButtonsState();
+        renderTable(false);
+    }
 
 async function dealerTurn() {
     const allBust = playerHands.every(h => h.isBust);
@@ -259,10 +276,12 @@ async function dealerTurn() {
     if (!allBust) {
         renderTable(true);
         while (calculateScore(dealerHand) < 17) {
-            await new Promise(r => setTimeout(r, 800));
+            await new Promise(r => setTimeout(r, 800)); // 這裡的延遲剛好配合動畫
             
             const currentScore = calculateScore(dealerHand);
             const newCard = await fetchCard('dealer', currentScore);
+            
+            newCard.isNew = true; // ✅ 標記新牌
             
             dealerHand.push(newCard);
             renderTable(true);
@@ -357,6 +376,12 @@ function renderTable(showDealerFull) {
             </div>`;
         elPlayerArea.innerHTML += html;
     });
+    setTimeout(() => {
+        dealerHand.forEach(c => c.isNew = false);
+        playerHands.forEach(hand => {
+            hand.cards.forEach(c => c.isNew = false);
+        });
+    }, 600);
 }
 
 function calculateScore(cards) {
@@ -373,7 +398,14 @@ function calculateScore(cards) {
 
 function createCardHTML(card) {
     const isRed = (card.suit === '♥' || card.suit === '♦');
-    return `<div class="playing-card ${isRed ? 'suit-red' : 'suit-black'}"><div>${card.value}</div><div>${card.suit}</div></div>`;
+    const animClass = card.isNew ? 'deal-anim' : '';
+    
+    return `
+        <div class="playing-card ${isRed ? 'suit-red' : 'suit-black'} ${animClass}">
+            <div>${card.value}</div>
+            <div>${card.suit}</div>
+        </div>
+    `;
 }
 
 function resetTable() {
