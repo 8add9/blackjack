@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>21點 - 管理員後台</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-container {
+            max-width: 900px; /* 稍微加寬以容納按鈕 */
+            margin: 0 auto;
+        }
+        .table-glass {
+            background-color: rgba(30, 30, 30, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th { background-color: rgba(13, 110, 253, 0.2) !important; }
+        
+        .modal-backdrop.show {
+            opacity: 0.8;
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+<body class="bg-dark text-light">
+
+    <div class="modal fade" id="loginModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-secondary shadow-lg">
+                <div class="modal-header border-secondary justify-content-center">
+                    <h4 class="modal-title fw-bold text-warning">🛡️ 管理員登入</h4>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="login-form" onsubmit="event.preventDefault(); adminLogin();">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">帳號</label>
+                            <input type="text" id="admin-user" class="form-control text-center" placeholder="Admin Username" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label text-muted">密碼</label>
+                            <input type="password" id="admin-pass" class="form-control text-center" placeholder="Password" required>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">驗證身份</button>
+                        </div>
+                        <div id="login-msg" class="mt-3 text-center text-danger small"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container py-5 admin-container d-none" id="main-content">
+        
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold text-warning">🛠️ 玩家管理後台</h2>
+            <div>
+                <a href="index.html" class="btn btn-outline-light btn-sm me-2">回到遊戲</a>
+                <button onclick="loadUsers()" class="btn btn-primary btn-sm">🔄 刷新列表</button>
+                <button onclick="logout()" class="btn btn-danger btn-sm ms-2">登出</button>
+            </div>
+        </div>
+
+        <div id="admin-message" class="alert d-none text-center"></div>
+
+        <div class="table-responsive table-glass shadow-lg border border-secondary">
+            <table class="table table-dark table-hover mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col" class="py-3 ps-3">ID</th>
+                        <th scope="col" class="py-3">帳號</th>
+                        <th scope="col" class="py-3">現有籌碼</th>
+                        <th scope="col" class="py-3 text-end pe-3">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="user-table-body">
+                    <tr><td colspan="4" class="text-center py-4 text-muted">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editBalanceModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-secondary shadow-lg">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">修改籌碼</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <input type="hidden" id="edit-username">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">玩家帳號</label>
+                            <input type="text" id="display-username" class="form-control" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">設定新籌碼金額</label>
+                            <input type="number" id="new-balance" class="form-control form-control-lg text-warning fw-bold" required>
+                            <div class="form-text text-light opacity-50">直接輸入最終金額</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" onclick="submitBalanceChange()" class="btn btn-success">儲存變更</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="changePasswordModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-secondary shadow-lg">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-info">修改密碼</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <input type="hidden" id="pwd-username">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">玩家帳號</label>
+                            <input type="text" id="pwd-display-username" class="form-control" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted">設定新密碼</label>
+                            <input type="text" id="new-password" class="form-control" placeholder="請輸入新密碼">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" onclick="submitPasswordChange()" class="btn btn-info">確認修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ==========================================
+        // 設定區域 (請填入正確的 Ngrok 網址)
+        // ==========================================
+        const API_BASE_URL = "https://reed-unhyphenated-su.ngrok-free.dev"; 
+
+        let adminToken = "";
+        const loginModal = new bootstrap.Modal(document.getElementById('loginModal'));
+        const editModal = new bootstrap.Modal(document.getElementById('editBalanceModal'));
+        const pwdModal = new bootstrap.Modal(document.getElementById('changePasswordModal')); // 新增
+        const tableBody = document.getElementById('user-table-body');
+        const elMsg = document.getElementById('admin-message');
+        const mainContent = document.getElementById('main-content');
+
+        window.onload = () => { loginModal.show(); };
+
+        // 1. 登入
+        async function adminLogin() {
+            const user = document.getElementById('admin-user').value;
+            const pass = document.getElementById('admin-pass').value;
+            const msgArea = document.getElementById('login-msg');
+            msgArea.innerText = "驗證中...";
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/login`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'true'
+                    },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    adminToken = data.token;
+                    loginModal.hide();
+                    mainContent.classList.remove('d-none');
+                    loadUsers();
+                } else {
+                    msgArea.innerText = data.message || "登入失敗";
+                }
+            } catch (error) {
+                console.error(error);
+                msgArea.innerText = "連線錯誤";
+            }
+        }
+
+        function logout() { location.reload(); }
+
+        // 2. 讀取列表
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/users`, {
+                    method: 'GET',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': adminToken,
+                        'ngrok-skip-browser-warning': 'true'
+                    }
+                });
+
+                if (response.status === 401) { alert("憑證過期"); logout(); return; }
+
+                const users = await response.json();
+                tableBody.innerHTML = ''; 
+
+                if (users.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4">暫無玩家資料</td></tr>`;
+                    return;
+                }
+
+                users.forEach(user => {
+                    const row = `
+                        <tr>
+                            <td class="ps-3 text-secondary">#${user.id}</td>
+                            <td class="fw-bold">${user.username}</td>
+                            <td class="text-warning fw-bold fs-5">$${user.balance}</td>
+                            <td class="text-end pe-3">
+                                <button class="btn btn-outline-warning btn-sm me-1" 
+                                    onclick="openEditModal('${user.username}', ${user.balance})">
+                                    ✏️ 籌碼
+                                </button>
+                                <button class="btn btn-outline-info btn-sm" 
+                                    onclick="openPasswordModal('${user.username}')">
+                                    🔑 密碼
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+
+            } catch (error) {
+                console.error(error);
+                showMessage("無法連接伺服器", "danger");
+            }
+        }
+
+        // 3. 修改籌碼相關
+        function openEditModal(username, currentBalance) {
+            document.getElementById('edit-username').value = username;
+            document.getElementById('display-username').value = username;
+            document.getElementById('new-balance').value = currentBalance;
+            editModal.show();
+        }
+
+        async function submitBalanceChange() {
+            const username = document.getElementById('edit-username').value;
+            const newBalance = parseInt(document.getElementById('new-balance').value);
+
+            if (isNaN(newBalance)) return alert("請輸入有效數字");
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/update_balance`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': adminToken,
+                        'ngrok-skip-browser-warning': 'true'
+                    },
+                    body: JSON.stringify({ username: username, amount: newBalance })
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    editModal.hide();
+                    showMessage(`成功更新籌碼: $${result.new_balance}`, "success");
+                    loadUsers(); 
+                } else {
+                    alert("失敗: " + result.message);
+                }
+            } catch (e) { alert("連線錯誤"); }
+        }
+        function openPasswordModal(username) {
+            document.getElementById('pwd-username').value = username;
+            document.getElementById('pwd-display-username').value = username;
+            document.getElementById('new-password').value = ""; 
+            pwdModal.show();
+        }
+
+        async function submitPasswordChange() {
+            const username = document.getElementById('pwd-username').value;
+            const newPassword = document.getElementById('new-password').value.trim();
+
+            if (!newPassword) return alert("請輸入新密碼");
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/admin/change_password`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': adminToken,
+                        'ngrok-skip-browser-warning': 'true'
+                    },
+                    body: JSON.stringify({ username: username, new_password: newPassword })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    pwdModal.hide();
+                    showMessage(`成功！玩家 ${username} 的密碼已重置`, "info");
+                } else {
+                    alert("失敗: " + result.message);
+                }
+            } catch (e) { alert("連線錯誤"); }
+        }
+
+        function showMessage(msg, type) {
+            elMsg.className = `alert alert-${type} text-center`;
+            elMsg.innerText = msg;
+            elMsg.classList.remove('d-none');
+            setTimeout(() => elMsg.classList.add('d-none'), 3000);
+        }
+    </script>
+</body>
+</html>
