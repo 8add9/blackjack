@@ -149,10 +149,6 @@ async function startGame() {
     currentHandIndex = 0;
     playerHands.push({ cards: [], bet: bet, isDone: false, isBust: false, isDoubled: false });
     
-    playerHands[0].cards.push(await fetchCard('player', 0));
-    dealerHand.push(await fetchCard('dealer', 0));
-    playerHands[0].cards.push(await fetchCard('player', getCardValue(playerHands[0].cards[0])));
-    dealerHand.push(await fetchCard('dealer', getCardValue(dealerHand[0])));
     let c1 = await fetchCard('player', 0); c1.isNew = true; // 標記新牌
     playerHands[0].cards.push(c1);
 
@@ -275,14 +271,20 @@ async function dealerTurn() {
     
     if (!allBust) {
         renderTable(true);
+        // 原本的 while 條件保留當作雙重保險
         while (calculateScore(dealerHand) < 17) {
-            await new Promise(r => setTimeout(r, 800)); // 這裡的延遲剛好配合動畫
+            await new Promise(r => setTimeout(r, 800));
             
             const currentScore = calculateScore(dealerHand);
             const newCard = await fetchCard('dealer', currentScore);
             
-            newCard.isNew = true; // ✅ 標記新牌
+            // ✅ 新增這段：如果後端說 "stop": true，就立刻停止
+            if (newCard.stop) {
+                console.log("莊家達到 17 點或爆牌，後端強制停止");
+                break; 
+            }
             
+            newCard.isNew = true;
             dealerHand.push(newCard);
             renderTable(true);
         }
