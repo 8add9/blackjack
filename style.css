@@ -100,7 +100,6 @@ body {
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.8); 
     transition: transform 0.2s, box-shadow 0.2s;
     cursor: default;
-    /* 發牌動畫 */
     animation: dealCard 0.3s ease-out forwards;
     position: relative;
 }
@@ -111,11 +110,10 @@ body {
     z-index: 10;
 }
 
-/* 花色顏色 */
 .suit-red { color: #c92a2a; }
 .suit-black { color: #1a1a1a; }
 
-/* 牌背樣式 */
+
 .card-back {
     background: repeating-linear-gradient(
         135deg,
@@ -134,7 +132,7 @@ body {
     border-radius: 4px;
 }
 
-/* 玩家手牌區域容器 */
+
 .player-hand-container {
     transition: all 0.3s;
     border-radius: 10px;
@@ -142,20 +140,19 @@ body {
     border: 2px solid transparent;
 }
 
-/* 當前操作的手牌高亮 */
 .hand-active {
     background-color: rgba(255, 215, 0, 0.1);
     border-color: rgba(255, 215, 0, 0.5);
     box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
 }
 
-/* 非當前手牌變暗 */
+
 .hand-inactive {
     opacity: 0.6;
     filter: grayscale(0.5);
 }
 
-/* 輸贏結果標籤 */
+
 .result-badge {
     font-size: 1.2rem;
     font-weight: bold;
@@ -169,9 +166,7 @@ body {
     pointer-events: none;
 }
 
-/* =========================================
-   動畫與響應式
-   ========================================= */
+
 @keyframes dealCard {
     from {
         opacity: 0;
@@ -192,7 +187,21 @@ body {
     .container {
         padding-top: 0.5rem !important;
     }
-    /* 手機版標題字稍微縮小 */
     h1 { font-size: 1.8rem; }
     h4 { font-size: 1.3rem; }
+}
+
+@keyframes dealCardAnimation {
+    0% {
+        transform: translateY(-300px) scale(0.5) rotate(180deg);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0) scale(1) rotate(0);
+        opacity: 1;
+    }
+}
+
+.deal-anim {
+    animation: dealCardAnimation 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
