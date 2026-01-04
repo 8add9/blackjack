@@ -1,21 +1,16 @@
 const API_BASE_URL = "https://reed-unhyphenated-su.ngrok-free.dev"; 
 
 
-const suits = ['♠', '♥', '♦', '♣'];
-const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-
-let deck = [];
 let dealerHand = [];
 let playerHands = []; 
 let currentHandIndex = 0;
-let balance = 0;
+let balance = 0; 
 let isGameOver = true;
-let currentUser = null;
-let isRegisterMode = false;
+let currentUser = null;     
+let isRegisterMode = false; 
 
 const elAuthView = document.getElementById('auth-view');
 const elGameView = document.getElementById('game-view');
-const elAuthForm = document.getElementById('auth-form');
 const inpUsername = document.getElementById('username');
 const inpPassword = document.getElementById('password');
 const inpConfirmPassword = document.getElementById('confirm-password');
@@ -32,7 +27,6 @@ const elDealerHand = document.getElementById('dealer-hand');
 const elPlayerArea = document.getElementById('player-area');
 const elDealerScore = document.getElementById('dealer-score');
 
-
 const btnHit = document.getElementById('btn-hit');
 const btnStand = document.getElementById('btn-stand');
 const btnDouble = document.getElementById('btn-double');
@@ -41,7 +35,6 @@ const divBettingControls = document.getElementById('betting-controls');
 const divGameControls = document.getElementById('game-controls');
 const divRestartControls = document.getElementById('restart-controls');
 const btnLogout = document.getElementById('btn-logout');
-
 
 window.onload = () => {
     btnToggleMode.onclick = toggleAuthMode;
@@ -55,105 +48,67 @@ window.onload = () => {
     document.getElementById('btn-next-round').onclick = resetTable;
 };
 
+async function fetchCard(role, currentScore) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/game/draw_card`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true'
+            },
+            body: JSON.stringify({
+                username: currentUser,
+                role: role,
+                current_score: currentScore
+            })
+        });
+        return await response.json();
+    } catch (e) {
+        console.error("發牌失敗", e);
+        return { suit: '♠', value: '2' }; 
+    }
+}
+
 function toggleAuthMode() {
     isRegisterMode = !isRegisterMode;
     elAuthMessage.classList.add('d-none');
-    
     if (isRegisterMode) {
         elConfirmGroup.classList.remove('d-none');
         btnSubmitAuth.innerText = "註冊並登入";
-        btnSubmitAuth.classList.remove('btn-primary');
-        btnSubmitAuth.classList.add('btn-success');
+        btnSubmitAuth.className = "btn btn-success btn-lg shadow-sm";
         btnToggleMode.innerText = "已有帳號？點此登入";
-        inpConfirmPassword.required = true;
     } else {
         elConfirmGroup.classList.add('d-none');
         btnSubmitAuth.innerText = "登入";
-        btnSubmitAuth.classList.remove('btn-success');
-        btnSubmitAuth.classList.add('btn-primary');
+        btnSubmitAuth.className = "btn btn-primary btn-lg shadow-sm";
         btnToggleMode.innerText = "沒有帳號？點此註冊";
-        inpConfirmPassword.required = false;
     }
 }
 
 async function handleAuthSubmit() {
     const username = inpUsername.value.trim();
     const password = inpPassword.value.trim();
+    if (!username || !password) return showAuthMessage("請輸入帳號密碼");
+
+    const endpoint = isRegisterMode ? '/register' : '/login';
     
-    if (!username || !password) {
-        showAuthMessage("請輸入帳號與密碼");
-        return;
-    }
-
-    if (isRegisterMode) {
-        const confirmPwd = inpConfirmPassword.value.trim();
-        if (password !== confirmPwd) {
-            showAuthMessage("兩次密碼輸入不一致");
-            return;
-        }
-        await performRegister(username, password);
-    } else {
-        await performLogin(username, password);
-    }
-}
-
-async function performLogin(username, password) {
     try {
         btnSubmitAuth.disabled = true;
-        btnSubmitAuth.innerText = "連線中...";
-        const response = await fetch(`${API_BASE_URL}/login`, {
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true'
-            },
+            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
             body: JSON.stringify({ username, password })
         });
-
         const data = await response.json();
-
         if (response.ok) {
             currentUser = data.username;
             balance = data.balance;
             enterGameView();
         } else {
-            showAuthMessage(data.message || "登入失敗");
+            showAuthMessage(data.message || "失敗");
         }
-    } catch (error) {
-        console.error(error);
-        showAuthMessage("連線錯誤，請檢查 API 網址或網路狀態");
-    } finally {
-        resetAuthBtnState();
-    }
-}
-
-async function performRegister(username, password) {
-    try {
-        btnSubmitAuth.disabled = true;
-        btnSubmitAuth.innerText = "註冊中...";
-
-        const response = await fetch(`${API_BASE_URL}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            // 註冊成功後直接登入 (或要求使用者重新登入，這裡選擇直接登入)
-            currentUser = data.username;
-            balance = data.balance; // 通常新帳號是預設值 (e.g. 1000)
-            enterGameView();
-        } else {
-            showAuthMessage(data.message || "註冊失敗");
-        }
-    } catch (error) {
-        console.error(error);
-        showAuthMessage("無法連線至伺服器");
-    } finally {
-        resetAuthBtnState();
-    }
+    } catch (e) { showAuthMessage("連線錯誤"); } 
+    finally { btnSubmitAuth.disabled = false; }
 }
 
 function enterGameView() {
@@ -161,17 +116,11 @@ function enterGameView() {
     elGameView.classList.remove('d-none');
     elDisplayUsername.innerText = currentUser;
     updateUI();
-    showGameMessage(`歡迎回來，${currentUser}！`);
 }
 
 function logout() {
     currentUser = null;
-    balance = 0;
-    inpPassword.value = "";
-    inpConfirmPassword.value = "";
-    elGameView.classList.add('d-none');
-    elAuthView.classList.remove('d-none');
-    showAuthMessage(""); // Clear messages
+    location.reload();
 }
 
 function showAuthMessage(msg) {
@@ -179,25 +128,6 @@ function showAuthMessage(msg) {
     elAuthMessage.classList.remove('d-none');
 }
 
-function resetAuthBtnState() {
-    btnSubmitAuth.disabled = false;
-    btnSubmitAuth.innerText = isRegisterMode ? "註冊並登入" : "登入";
-}
-function createDeck() {
-    deck = [];
-    for (let suit of suits) {
-        for (let value of values) {
-            deck.push({ suit, value });
-        }
-    }
-}
-
-function shuffleDeck() {
-    for (let i = deck.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [deck[i], deck[j]] = [deck[j], deck[i]];
-    }
-}
 
 function getCardValue(card) {
     if (['J', 'Q', 'K'].includes(card.value)) return 10;
@@ -205,32 +135,24 @@ function getCardValue(card) {
     return parseInt(card.value);
 }
 
-function startGame() {
+async function startGame() {
     const bet = parseInt(elBetAmount.value);
     if (isNaN(bet) || bet <= 0) return showGameMessage("金額無效", "danger");
     if (bet > balance) return showGameMessage("餘額不足", "danger");
+
     balance -= bet;
     updateUI();
 
     isGameOver = false;
-    createDeck();
-    shuffleDeck();
     dealerHand = [];
     playerHands = [];
     currentHandIndex = 0;
-
-    playerHands.push({
-        cards: [],
-        bet: bet,
-        isDone: false,
-        isBust: false,
-        isDoubled: false
-    });
+    playerHands.push({ cards: [], bet: bet, isDone: false, isBust: false, isDoubled: false });
     
-    playerHands[0].cards.push(deck.pop());
-    dealerHand.push(deck.pop());
-    playerHands[0].cards.push(deck.pop());
-    dealerHand.push(deck.pop());
+    playerHands[0].cards.push(await fetchCard('player', 0));
+    dealerHand.push(await fetchCard('dealer', 0));
+    playerHands[0].cards.push(await fetchCard('player', getCardValue(playerHands[0].cards[0])));
+    dealerHand.push(await fetchCard('dealer', getCardValue(dealerHand[0])));
 
     renderTable(false);
     
@@ -247,31 +169,13 @@ function startGame() {
     }
 }
 
-function checkButtonsState() {
-    const currentHand = playerHands[currentHandIndex];
-    if (balance >= currentHand.bet && currentHand.cards.length === 2) {
-        btnDouble.disabled = false;
-    } else {
-        btnDouble.disabled = true;
-    }
-    const card1Value = getCardValue(currentHand.cards[0]);
-    const card2Value = getCardValue(currentHand.cards[1]);
-    
-    if (balance >= currentHand.bet && 
-        currentHand.cards.length === 2 && 
-        card1Value === card2Value && 
-        playerHands.length < 2) {
-        btnSplit.disabled = false;
-    } else {
-        btnSplit.disabled = true;
-    }
-}
-
-function hit() {
+async function hit() {
     if (isGameOver) return;
     const hand = playerHands[currentHandIndex];
+    const currentScore = calculateScore(hand.cards);
+    const newCard = await fetchCard('player', currentScore);
     
-    hand.cards.push(deck.pop());
+    hand.cards.push(newCard);
     renderTable(false);
     
     const score = calculateScore(hand.cards);
@@ -282,14 +186,14 @@ function hit() {
     } else if (score === 21) {
         stand();
     } else {
+        checkButtonsState();
         btnDouble.disabled = true;
         btnSplit.disabled = true;
     }
 }
 
-function stand() {
+async function stand() {
     if (isGameOver) return;
-    
     playerHands[currentHandIndex].isDone = true;
     
     if (currentHandIndex < playerHands.length - 1) {
@@ -298,11 +202,11 @@ function stand() {
         checkButtonsState();
         renderTable(false);
     } else {
-        dealerTurn();
+        await dealerTurn(); 
     }
 }
 
-function doubleBet() {
+async function doubleBet() {
     const hand = playerHands[currentHandIndex];
     if (balance < hand.bet) return showGameMessage("餘額不足", "danger");
 
@@ -310,10 +214,11 @@ function doubleBet() {
     hand.bet *= 2;
     hand.isDoubled = true;
     updateUI();
-
     showGameMessage(`雙倍下注！總注額: $${hand.bet}`, "warning");
     
-    hand.cards.push(deck.pop());
+    const currentScore = calculateScore(hand.cards);
+    const newCard = await fetchCard('player', currentScore);
+    hand.cards.push(newCard);
     
     const score = calculateScore(hand.cards);
     if (score > 21) hand.isBust = true;
@@ -321,15 +226,16 @@ function doubleBet() {
     stand();
 }
 
-function splitHand() {
+async function splitHand() {
     const hand = playerHands[currentHandIndex];
     if (balance < hand.bet) return showGameMessage("餘額不足", "danger");
 
     balance -= hand.bet;
     updateUI();
-
     showGameMessage("分牌！", "info");
+
     const cardToMove = hand.cards.pop();
+    
     playerHands.push({
         cards: [cardToMove],
         bet: hand.bet,
@@ -337,27 +243,35 @@ function splitHand() {
         isBust: false,
         isDoubled: false
     });
-    hand.cards.push(deck.pop());
-    playerHands[1].cards.push(deck.pop());
+    const score1 = getCardValue(hand.cards[0]);
+    hand.cards.push(await fetchCard('player', score1));
+
+    const score2 = getCardValue(playerHands[1].cards[0]);
+    playerHands[1].cards.push(await fetchCard('player', score2));
+
     checkButtonsState();
     renderTable(false);
 }
 
-function dealerTurn() {
+async function dealerTurn() {
     const allBust = playerHands.every(h => h.isBust);
+    
     if (!allBust) {
         renderTable(true);
         while (calculateScore(dealerHand) < 17) {
-            dealerHand.push(deck.pop());
+            await new Promise(r => setTimeout(r, 800));
+            
+            const currentScore = calculateScore(dealerHand);
+            const newCard = await fetchCard('dealer', currentScore);
+            
+            dealerHand.push(newCard);
             renderTable(true);
         }
     } else {
         renderTable(true);
     }
-    
     settleGame();
 }
-
 async function settleGame() {
     isGameOver = true;
     const dScore = calculateScore(dealerHand);
@@ -383,46 +297,31 @@ async function settleGame() {
             resultMsg = "平手";
             totalWin += hand.bet;
         }
-        
         hand.resultText = resultMsg;
     });
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/game_result`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                username: currentUser,
-                bet: totalBet,
-                payout: totalWin
-            })
+            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+            body: JSON.stringify({ username: currentUser, bet: totalBet, payout: totalWin })
         });
-
         if (response.ok) {
             const data = await response.json();
             balance = data.new_balance;
         } else {
-            console.error("結算同步失敗");
             balance += totalWin; 
         }
-    } catch (e) {
-        console.error("連線錯誤", e);
-        balance += totalWin;
-    }
+    } catch (e) { balance += totalWin; }
 
     updateUI();
     
-    if (totalWin > totalBet) {
-        showGameMessage(`你贏了！本局淨賺 $${totalWin - totalBet}`, "success");
-    } else if (totalWin < totalBet) {
-        showGameMessage("你又輸！", "danger");
-    } else {
-        showGameMessage("平手", "warning");
-    }
+    if (totalWin > totalBet) showGameMessage(`恭喜！本局淨賺 $${totalWin - totalBet}`, "success");
+    else if (totalWin < totalBet) showGameMessage("你又輸！", "danger");
+    else showGameMessage("平手", "warning");
 
     divGameControls.classList.add('d-none');
     divRestartControls.classList.remove('d-none');
-    renderTable(true);
 }
 
 function renderTable(showDealerFull) {
@@ -437,13 +336,11 @@ function renderTable(showDealerFull) {
     elDealerScore.innerText = showDealerFull ? calculateScore(dealerHand) : "?";
 
     elPlayerArea.innerHTML = '';
-    
     playerHands.forEach((hand, index) => {
         const isActive = (index === currentHandIndex && !isGameOver);
         const activeClass = isActive ? 'hand-active' : 'hand-inactive';
         const score = calculateScore(hand.cards);
         const colClass = playerHands.length > 1 ? 'col-6' : 'col-12';
-        
         let html = `
             <div class="${colClass} text-center">
                 <div class="player-hand-container ${activeClass} position-relative">
@@ -457,8 +354,7 @@ function renderTable(showDealerFull) {
                     <div class="mt-2 text-warning small">下注: $${hand.bet}</div>
                     ${hand.resultText ? `<div class="result-badge badge bg-light text-dark shadow">${hand.resultText}</div>` : ''}
                 </div>
-            </div>
-        `;
+            </div>`;
         elPlayerArea.innerHTML += html;
     });
 }
@@ -489,10 +385,18 @@ function resetTable() {
     showGameMessage("請下注", "info");
 }
 
-function updateUI() {
-    elBalance.innerText = balance;
+function checkButtonsState() {
+    const currentHand = playerHands[currentHandIndex];
+    if (balance >= currentHand.bet && currentHand.cards.length === 2) btnDouble.disabled = false;
+    else btnDouble.disabled = true;
+
+    const card1Value = getCardValue(currentHand.cards[0]);
+    const card2Value = getCardValue(currentHand.cards[1]);
+    if (balance >= currentHand.bet && currentHand.cards.length === 2 && card1Value === card2Value && playerHands.length < 2) btnSplit.disabled = false;
+    else btnSplit.disabled = true;
 }
 
+function updateUI() { elBalance.innerText = balance; }
 function showGameMessage(msg, type = "info") {
     elMessage.className = `alert alert-${type} text-center`;
     elMessage.innerText = msg;
